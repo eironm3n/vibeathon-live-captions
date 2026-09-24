@@ -167,6 +167,29 @@ select:focus {
   white-space: nowrap;
 }
 
+.links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.links a {
+  color: var(--gray);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.links a:hover {
+  color: var(--white);
+}
+
+.links a.disabled {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;

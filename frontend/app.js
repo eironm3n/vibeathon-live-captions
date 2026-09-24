@@ -3,9 +3,25 @@ const langButtons = document.querySelectorAll(".lang-btn");
 const captionsEl = document.getElementById("captions");
 const statusEl = document.getElementById("status");
 const statusTextEl = document.getElementById("status-text");
+const overlayLink = document.getElementById("overlay-link");
+const srtLink = document.getElementById("srt-link");
+const vttLink = document.getElementById("vtt-link");
 
 let ws = null;
 let currentLang = "original";
+
+function updateLinks() {
+  const sessionId = sessionSelect.value;
+  const links = [overlayLink, srtLink, vttLink];
+  if (!sessionId) {
+    links.forEach((a) => a.classList.add("disabled"));
+    return;
+  }
+  links.forEach((a) => a.classList.remove("disabled"));
+  overlayLink.href = `overlay.html?session=${encodeURIComponent(sessionId)}&lang=${currentLang}`;
+  srtLink.href = `/api/sessions/${encodeURIComponent(sessionId)}/export?lang=${currentLang}&fmt=srt`;
+  vttLink.href = `/api/sessions/${encodeURIComponent(sessionId)}/export?lang=${currentLang}&fmt=vtt`;
+}
 
 function setStatus(text, live) {
   statusTextEl.textContent = text;
@@ -40,6 +56,7 @@ async function refreshSessions() {
     }
     setStatus("desconectado", false);
     setCaptions("Elegí una sesión para empezar.", { placeholder: true });
+    updateLinks();
     return;
   }
 
@@ -62,6 +79,7 @@ function connect() {
   if (!sessionId) return;
 
   if (ws) ws.close();
+  updateLinks();
 
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/ws/captions/${sessionId}?lang=${currentLang}`);

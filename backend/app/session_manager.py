@@ -28,6 +28,12 @@ class Session:
 class SessionManager:
     def __init__(self) -> None:
         self._sessions: dict[str, Session] = {}
+        # CaptionHub de sesiones ya terminadas, para poder exportar su
+        # transcripción (SRT/VTT/texto) después de que se cierran. No se
+        # purga solo: en un despliegue de larga duración con muchas
+        # sesiones convendría persistir esto a disco/DB en vez de
+        # mantenerlo todo en memoria.
+        self._archive: dict[str, CaptionHub] = {}
         self._lock = asyncio.Lock()
 
     async def get_or_create(self, session_id: str) -> Session:
@@ -50,7 +56,23 @@ class SessionManager:
         return list(self._sessions.keys())
 
     async def remove(self, session_id: str) -> None:
+        session = self._sessions.get(session_id)
+        if not session:
+            return
+        # Importante: cerramos el bridge (que termina de procesar lo que
+        # haya quedado en el buffer) ANTES de sacar la sesión de la lista
+        # de activas. Si la sacáramos antes, un cliente que viera la sesión
+        # desaparecer de /api/sessions y disparara la exportación en ese
+        # momento se encontraría con el último segmento todavía sin
+        # procesar (podía tardar bastantes segundos más contra Gemini).
+        await session.bridge.close()
         async with self._lock:
-            session = self._sessions.pop(session_id, None)
+            self._sessions.pop(session_id, None)
+            self._archive[session_id] = session.hub
+
+    def get_hub_for_export(self, session_id: str) -> CaptionHub | None:
+        """Devuelve el CaptionHub de una sesión activa o ya terminada."""
+        session = self._sessions.get(session_id)
         if session:
-            await session.bridge.close()
+            return session.hub
+        return self._archive.get(session_id)

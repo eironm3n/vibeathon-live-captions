@@ -39,7 +39,8 @@ from typing import Awaitable, Callable
 from google import genai
 from google.genai import types
 
-from .config import AUDIO_MIME_TYPE, GEMINI_API_KEY, GEMINI_MODEL, TARGET_LANGUAGE
+from .config import AUDIO_MIME_TYPE, AUDIO_SAMPLE_RATE, GEMINI_API_KEY, GEMINI_MODEL, TARGET_LANGUAGE
+from .glossary import GLOSSARY_INSTRUCTIONS
 from .schemas import CaptionEvent
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ _LANGUAGE_NAMES = {
 
 def _translation_prompt(target_lang: str) -> str:
     target_name = _LANGUAGE_NAMES.get(target_lang, target_lang)
-    return (
+    base = (
         "Sos un intérprete simultáneo para una conferencia técnica. "
         "Vas a recibir un fragmento de audio en vivo de una charla. "
         f"Traducí todo lo que se dice al {target_name}. "
@@ -73,6 +74,7 @@ def _translation_prompt(target_lang: str) -> str:
         "Devolvé ÚNICAMENTE la traducción como texto plano, sin agregar "
         "comentarios, aclaraciones ni marcas de idioma."
     )
+    return base + GLOSSARY_INSTRUCTIONS
 
 
 class GeminiBridge:
@@ -91,6 +93,12 @@ class GeminiBridge:
 
         self._flush_task: asyncio.Task | None = None
         self._worker_task: asyncio.Task | None = None
+
+        # Segundos de audio de la sesión ya procesados, para poder darle a
+        # cada subtítulo un timestamp relativo al audio original (no al
+        # momento en que Gemini devolvió la respuesta) — lo usa la
+        # exportación SRT/VTT.
+        self._elapsed_seconds = 0.0
 
     async def start(self) -> None:
         if not GEMINI_API_KEY:
@@ -142,6 +150,11 @@ class GeminiBridge:
             await self._process_segment(segment)
 
     async def _process_segment(self, audio_bytes: bytes) -> None:
+        segment_start = self._elapsed_seconds
+        segment_duration = len(audio_bytes) / (AUDIO_SAMPLE_RATE * 2)  # PCM16 mono: 2 bytes/muestra
+        segment_end = segment_start + segment_duration
+        self._elapsed_seconds = segment_end
+
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             input_audio_transcription=types.AudioTranscriptionConfig(),
@@ -176,9 +189,13 @@ class GeminiBridge:
                         break
 
                 if orig_text:
-                    await self._emit("original", orig_text, is_final=True)
+                    await self._emit(
+                        "original", orig_text, is_final=True, start_s=segment_start, end_s=segment_end
+                    )
                 if trans_text:
-                    await self._emit(self._target_lang, trans_text, is_final=True)
+                    await self._emit(
+                        self._target_lang, trans_text, is_final=True, start_s=segment_start, end_s=segment_end
+                    )
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -186,7 +203,21 @@ class GeminiBridge:
                 "Error procesando un segmento de audio de la sesión %s", self.session_id
             )
 
-    async def _emit(self, lang: str, text: str, is_final: bool) -> None:
+    async def _emit(
+        self,
+        lang: str,
+        text: str,
+        is_final: bool,
+        start_s: float | None = None,
+        end_s: float | None = None,
+    ) -> None:
         await self._on_caption(
-            CaptionEvent(session_id=self.session_id, lang=lang, text=text, is_final=is_final)
+            CaptionEvent(
+                session_id=self.session_id,
+                lang=lang,
+                text=text,
+                is_final=is_final,
+                start_s=start_s,
+                end_s=end_s,
+            )
         )

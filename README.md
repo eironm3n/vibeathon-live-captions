@@ -25,9 +25,18 @@ una alternativa abierta y barata para cuando esa opción no está disponible.
 | N4 | Visualización de subtítulos | Vista web de audiencia ([`frontend/`](frontend/)) que se conecta por WebSocket a `/ws/captions/{session_id}` y muestra el texto en vivo. |
 | N5 | Múltiples sesiones en simultáneo | Cada sesión (`session_id`) corre de forma independiente — su propia conexión Gemini Live y su propio canal de subtítulos. No hay límite artificial: correr 2, 5 o 10 sesiones es simplemente usar 2, 5 o 10 `session_id` distintos. Ver [Escalar a más sesiones](#escalar-a-más-sesiones). |
 
-Los opcionales del desafío (integración OBS/vMix, más idiomas, glosario,
-export SRT/VTT, panel de monitoreo) quedan para una siguiente etapa, una
-vez validado este MVP.
+## Opcionales implementados
+
+| Opcional | Cómo se resuelve |
+|---|---|
+| Integración con OBS/vMix | [`/overlay.html`](frontend/overlay.html) — vista con fondo transparente y sin controles, pensada para usarse directo como *Browser Source*. `http://localhost:8000/overlay.html?session=escenario-1&lang=es` |
+| Exportar transcripción (SRT/VTT/texto) | `GET /api/sessions/{session_id}/export?lang=original\|es&fmt=srt\|vtt\|txt` — funciona con la sesión activa o ya terminada. Cada subtítulo final se guarda con su timestamp real (relativo al audio, no al momento en que Gemini respondió), así el archivo queda sincronizado. Desde el frontend, los links `.srt` / `.vtt` del header apuntan a la sesión y el idioma seleccionados. |
+| Glosario de términos técnicos / nombres propios | [`glossary.txt`](glossary.txt) en la raíz del repo: una entrada por línea, `término` (se mantiene tal cual) o `mal_reconocido => correcto` (corrige errores típicos de reconocimiento). Se inyecta en el `system_instruction` de la traducción. Se recarga solo al reiniciar el backend. |
+
+Quedan para una siguiente etapa (documentados pero no implementados): más
+idiomas de entrada/salida seleccionables por la audiencia (el backend ya
+soporta cualquier idioma vía `TARGET_LANGUAGE`, pero hoy es uno por
+despliegue, no por sesión) y un panel de monitoreo de producción.
 
 ## Arquitectura
 
@@ -43,14 +52,22 @@ productor de audio          backend (FastAPI)                visor
                           /ws/captions/{id} ─▶ frontend (vista de audiencia)
 ```
 
-- `backend/app/gemini_bridge.py`: abre una conexión Gemini Live por sesión,
-  le envía el audio y traduce las respuestas del modelo en eventos de
-  subtítulo.
-- `backend/app/session_manager.py`: registro de sesiones activas.
+- `backend/app/gemini_bridge.py`: agrupa el audio de una sesión en
+  segmentos, abre una conexión Gemini Live por segmento y traduce las
+  respuestas del modelo en eventos de subtítulo (usa el glosario de
+  `glossary.py`).
+- `backend/app/session_manager.py`: registro de sesiones activas + archivo
+  de sesiones terminadas (para poder exportarlas después).
 - `backend/app/caption_hub.py`: pub/sub en memoria que reparte los
-  subtítulos de una sesión a todos sus visores conectados.
+  subtítulos de una sesión a todos sus visores conectados, y guarda el
+  historial de subtítulos finales para exportar.
+- `backend/app/export.py`: arma SRT/VTT/texto a partir de ese historial.
+- `backend/app/glossary.py`: carga `glossary.txt` (raíz del repo) para
+  mejorar la traducción de términos técnicos y nombres propios.
 - `frontend/`: página estática sin build step — selector de sesión +
-  toggle de idioma + panel de subtítulos.
+  toggle de idioma + panel de subtítulos + links de overlay/export.
+- `frontend/overlay.html` + `overlay.js`: vista minimal para usar como
+  Browser Source en OBS/vMix.
 
 ## Requisitos
 

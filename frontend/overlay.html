@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overlay de subtítulos · OBS</title>
+    <style>
+      /* Fondo transparente a propósito: esta página está pensada para
+         usarse como Browser Source en OBS/vMix sobre el video real. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 6%;
+      }
+
+      .caption-box {
+        max-width: 90vw;
+        background: rgba(0, 0, 0, 0.75);
+        padding: 12px 26px;
+        border-radius: 4px;
+      }
+
+      .caption-box[hidden] {
+        display: none;
+      }
+
+      p {
+        margin: 0;
+        color: #ffffff;
+        font-weight: 700;
+        font-size: clamp(20px, 3vw, 34px);
+        line-height: 1.3;
+        text-align: center;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+      }
+
+      p.interim {
+        opacity: 0.7;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="box" class="caption-box" hidden>
+      <p id="captions"></p>
+    </div>
+    <script src="overlay.js"></script>
+  </body>
+</html>

@@ -12,3 +12,9 @@ class CaptionEvent(BaseModel):
     text: str
     is_final: bool
     ts: float = Field(default_factory=time.time)
+
+    # Segundos desde el inicio del audio de la sesión (no wall-clock). Se
+    # usan para exportar SRT/VTT con timing acorde al audio original. Solo
+    # se completan en eventos finales; en interinos quedan en None.
+    start_s: float | None = None
+    end_s: float | None = None

@@ -7,14 +7,21 @@ Endpoints:
                                      para esa sesión (?lang=original|es).
   GET /api/sessions              -> sesiones activas (para el selector del
                                      frontend y para verificar N5).
+  GET /api/sessions/{id}/export  -> transcripción completa en srt/vtt/txt
+                                     (funciona con sesiones activas o ya
+                                     terminadas).
   GET /health                    -> healthcheck.
   /                              -> vista de audiencia (frontend estático).
+  /overlay.html                  -> vista minimal con fondo transparente,
+                                     para usar como Browser Source en OBS.
 """
 import logging
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
+from . import export as export_
 from .config import FRONTEND_DIR
 from .session_manager import SessionManager
 
@@ -33,6 +40,35 @@ async def health():
 @app.get("/api/sessions")
 async def list_sessions():
     return {"sessions": manager.list_ids()}
+
+
+_EXPORT_MEDIA_TYPES = {"srt": "text/plain", "vtt": "text/vtt", "txt": "text/plain"}
+
+
+@app.get("/api/sessions/{session_id}/export")
+async def export_session(session_id: str, lang: str = "original", fmt: str = "srt"):
+    if fmt not in _EXPORT_MEDIA_TYPES:
+        raise HTTPException(status_code=400, detail="formato inválido: usar srt, vtt o txt")
+
+    hub = manager.get_hub_for_export(session_id)
+    if hub is None:
+        raise HTTPException(status_code=404, detail="sesión no encontrada")
+
+    events = hub.history(lang)
+    if not events:
+        raise HTTPException(
+            status_code=404,
+            detail=f"la sesión '{session_id}' no tiene subtítulos finales para el idioma '{lang}'",
+        )
+
+    builder = {"srt": export_.to_srt, "vtt": export_.to_vtt, "txt": export_.to_txt}[fmt]
+    content = builder(events)
+    filename = f"{session_id}-{lang}.{fmt}"
+    return Response(
+        content=content,
+        media_type=_EXPORT_MEDIA_TYPES[fmt],
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.websocket("/ws/ingest/{session_id}")

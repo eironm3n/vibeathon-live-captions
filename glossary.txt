@@ -1,0 +1,15 @@
+# Glosario de la conferencia: términos técnicos y nombres propios que el
+# traductor debe respetar. Una entrada por línea.
+#
+#   término                -> se mantiene tal cual, no se traduce
+#   forma_mal_reconocida => forma_correcta   -> corrección de un error típico de reconocimiento de voz
+#
+# Las líneas que empiezan con # se ignoran.
+
+Nerdearla
+Vibeathon
+Gemini
+Gemma
+open source
+Kapsch Henning => captioning
+capshening => captioning
