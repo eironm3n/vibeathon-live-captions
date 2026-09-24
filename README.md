@@ -1,10 +1,11 @@
-# Vibeathon Nerdearla 2026 — Subtítulos en vivo, open source y a escala
+# OpenCaption Live
 
 Transcripción y traducción simultánea en tiempo real para conferencias,
 pensada para reemplazar herramientas comerciales caras y operación manual
 por un pipeline automático, abierto y replicable por cualquier evento.
 
-Construido para la [Vibeathon de Nerdearla 2026](https://nerdear.la).
+Construido por [Aron Rojas](https://github.com/eironm3n) para la
+[Vibeathon de Nerdearla 2026](https://nerdear.la).
 
 ## El problema
 
@@ -205,6 +206,10 @@ de la entrega final.
 - **`No API key was provided`** o el WebSocket de ingesta se cierra con
   código 1011 apenas conecta: falta `GEMINI_API_KEY` en `.env`, o está mal
   copiada.
+
+## Autor
+
+**Aron Rojas** — [github.com/eironm3n](https://github.com/eironm3n)
 
 ## Licencia
 
