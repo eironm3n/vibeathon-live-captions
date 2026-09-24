@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Audio/video de prueba: no versionamos contenido de charlas de terceros.
+*.wav
+*.mp3
+*.mp4
+*.mkv
+*.webm
+*.m4a
+!sample_audio/README.md
+
+.DS_Store

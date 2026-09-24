@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Subtítulos en vivo · Vibeathon Nerdearla</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1 class="brand"><span class="accent">Subtítulos</span> en vivo</h1>
+
+      <div class="controls">
+        <div class="field">
+          <label for="session">Sesión</label>
+          <select id="session"></select>
+        </div>
+
+        <div class="lang-toggle">
+          <button class="lang-btn active" data-lang="original">Idioma original</button>
+          <button class="lang-btn" data-lang="es">Español</button>
+        </div>
+      </div>
+
+      <span id="status" class="status">
+        <span class="status-dot"></span>
+        <span id="status-text">desconectado</span>
+      </span>
+    </header>
+    <div class="stripe"><span></span><span></span><span></span></div>
+
+    <main>
+      <div class="caption-box">
+        <p id="captions" class="captions placeholder">Elegí una sesión para empezar.</p>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

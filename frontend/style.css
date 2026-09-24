@@ -1,0 +1,260 @@
+:root {
+  color-scheme: dark;
+  --black: #000000;
+  --near-black: #141414;
+  --panel: #181818;
+  --border: #2a2a2a;
+  /* Paleta de marca de Nerdearla. */
+  --red: #e02832;
+  --red-dark: #b81f27;
+  --teal: #00aca8;
+  --yellow: #ffba00;
+  --white: #ffffff;
+  --gray: #b3b3b3;
+  --gray-dim: #737373;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--near-black);
+  color: var(--white);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Header --- */
+
+.stripe {
+  display: flex;
+  height: 4px;
+}
+
+.stripe span {
+  flex: 1;
+}
+
+.stripe span:nth-child(1) {
+  background: var(--red);
+}
+
+.stripe span:nth-child(2) {
+  background: var(--teal);
+}
+
+.stripe span:nth-child(3) {
+  background: var(--yellow);
+}
+
+header {
+  background: var(--black);
+  padding: 14px 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.brand .accent {
+  color: var(--red);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray);
+}
+
+select {
+  appearance: none;
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23b3b3b3'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  color: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 30px 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 160px;
+  cursor: pointer;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+
+.lang-toggle {
+  display: flex;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.lang-btn {
+  background: transparent;
+  color: var(--gray);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.lang-btn:hover {
+  color: var(--white);
+}
+
+.lang-btn.active {
+  background: var(--red);
+  color: var(--white);
+}
+
+.lang-btn[data-lang="es"].active {
+  background: var(--teal);
+}
+
+.status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--gray-dim);
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-dim);
+}
+
+.status.live {
+  color: var(--red);
+}
+
+.status.live .status-dot {
+  background: var(--red);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(229, 9, 20, 0);
+  }
+}
+
+/* --- Stage --- */
+
+main {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24px 24px 8%;
+  background: radial-gradient(ellipse at center, #232323 0%, #0a0a0a 75%, #000000 100%);
+  overflow: hidden;
+}
+
+.caption-box {
+  max-width: min(1000px, 90vw);
+  background: rgba(0, 0, 0, 0.75);
+  padding: 14px 28px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.captions {
+  margin: 0;
+  color: var(--white);
+  font-weight: 700;
+  font-size: clamp(20px, 3.4vw, 38px);
+  line-height: 1.35;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  animation: caption-in 0.2s ease-out;
+}
+
+.captions.interim {
+  color: var(--gray);
+  font-weight: 500;
+}
+
+.captions.placeholder {
+  color: var(--gray-dim);
+  font-weight: 500;
+  font-size: clamp(16px, 2vw, 20px);
+  text-shadow: none;
+}
+
+@keyframes caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  header {
+    padding: 12px 16px;
+  }
+
+  .status {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
