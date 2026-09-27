@@ -10,10 +10,20 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    ignore:
+      # google-genai (motor Gemini) exige websockets<17: sin esto, la imagen
+      # con ese motor no se puede construir.
+      - dependency-name: websockets
+        versions: [">=17"]
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: monthly
+    ignore:
+      # Solo parches de Python (3.12.x). Pasar a otra versión menor es una
+      # decisión a mano, junto con la versión que usa CI para los tests.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
