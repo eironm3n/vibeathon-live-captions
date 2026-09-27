@@ -1,0 +1,20 @@
+# Dependabot abre PRs cuando hay versiones nuevas (incluidas las de
+# seguridad). Las versiones están fijadas a propósito: se actualizan con
+# un PR que pasa CI, nunca solas en un build.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -1,10 +1,33 @@
+# OpenCaption Live. Lo más simple es usar iniciar.sh / iniciar.ps1, que
+# crean el .env y levantan esto. A mano:
+#   cp .env.example .env
+#   docker compose up -d --build
+#
+# Traducción con un LLM local (Ollama) en vez de Argos:
+#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+
+name: opencaption-live
+
 services:
-  captioner:
+  opencaption:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    ports:
-      - "8000:8000"
+      args:
+        # Solo se instalan las dependencias del motor elegido.
+        ENGINES: ${CAPTION_ENGINE:-local}
     env_file:
-      - .env
+      - path: .env
+        required: false
+    ports:
+      # Solo accesible desde esta máquina. Para publicarlo en la red o en
+      # internet, ver la sección "Publicarlo" del README (HTTPS + proxy).
+      - "127.0.0.1:${PORT:-8000}:8000"
+    volumes:
+      - models:/models
+      # El glosario se edita sin reconstruir la imagen (reiniciar para aplicarlo).
+      - ./glossary.txt:/app/glossary.txt:ro
     restart: unless-stopped
+
+volumes:
+  models:

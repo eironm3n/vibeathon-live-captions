@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests (motor mock)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r backend/requirements-dev.txt
+      - run: pytest -q
+        working-directory: backend
+
+  docker:
+    name: Imagen Docker (motores local y gemini)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar archivos de Compose
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.ollama.yml config --quiet
+      - name: Construir la imagen con todas las dependencias
+        run: docker build -f backend/Dockerfile --build-arg ENGINES="local gemini" -t opencaption-live:ci .
+      - name: Arranca y responde (motor mock)
+        run: |
+          docker run -d --name oc -p 127.0.0.1:8000:8000 -e CAPTION_ENGINE=mock opencaption-live:ci
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8000/health && exit 0; sleep 1; done
+          docker logs oc; exit 1
+      - name: Los motores reales se importan
+        run: docker run --rm opencaption-live:ci python -c "import app.engines.local, app.engines.gemini, faster_whisper, google.genai"
