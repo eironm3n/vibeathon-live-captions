@@ -1,7 +1,7 @@
 # OpenCaption Live.
 # Debian slim y no Alpine: los wheels de CTranslate2/onnxruntime que usa el
 # motor local solo se publican para glibc.
-FROM python:3.12.10-slim-bookworm
+FROM python:3.12.14-slim-bookworm
 
 # Motores cuyas dependencias se instalan (separados por espacio): local, gemini.
 # "mock" no necesita nada extra. docker-compose.yml lo toma de CAPTION_ENGINE.
