@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Subtítulos en vivo · Vibeathon Nerdearla</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <title>OpenCaption Live · Subtítulos en vivo</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header>
-      <h1 class="brand"><span class="accent">Subtítulos</span> en vivo</h1>
+      <h1 class="brand"><span class="accent">OpenCaption</span> Live</h1>
 
       <div class="controls">
         <div class="field">
@@ -16,12 +17,12 @@
           <select id="session"></select>
         </div>
 
-        <div class="lang-toggle">
+        <div class="lang-toggle" id="lang-toggle">
           <button class="lang-btn active" data-lang="original">Idioma original</button>
-          <button class="lang-btn" data-lang="es">Español</button>
         </div>
 
         <div class="links" id="links">
+          <a href="admin.html">+ Emitir</a>
           <a id="overlay-link" href="#" target="_blank" rel="noopener">Overlay OBS ↗</a>
           <a id="srt-link" href="#">.srt</a>
           <a id="vtt-link" href="#">.vtt</a>
@@ -41,6 +42,7 @@
       </div>
     </main>
 
+    <script src="languages.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
