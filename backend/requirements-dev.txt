@@ -1,0 +1,3 @@
+# Tests (usan el motor mock: no necesitan key, modelos ni red).
+-r requirements.txt
+pytest==9.1.1
