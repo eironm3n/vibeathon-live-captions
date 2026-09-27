@@ -44,21 +44,25 @@ if (-not (Get-EnvValue "INGEST_TOKEN")) {
     Write-Host "Generé un INGEST_TOKEN aleatorio en .env."
 }
 
-$motorElegido = $Motor
-if (-not $Motor) { $Motor = Get-EnvValue "CAPTION_ENGINE" }
-if (-not $Motor) { $Motor = "local" }
-if ($Motor -eq "gemini" -and -not (Get-EnvValue "GEMINI_API_KEY")) {
+# Variable aparte: $Motor tiene [ValidateSet] y no admite quedar vacía.
+$motorActual = $Motor
+if (-not $motorActual) { $motorActual = Get-EnvValue "CAPTION_ENGINE" }
+if (-not $motorActual) { $motorActual = "local" }
+if ($motorActual -notin @("local", "gemini", "mock")) {
+    Write-Error "CAPTION_ENGINE inválido en .env: $motorActual (usar local, gemini o mock)."
+}
+if ($motorActual -eq "gemini" -and -not (Get-EnvValue "GEMINI_API_KEY")) {
     Write-Error "El motor gemini necesita GEMINI_API_KEY en .env."
 }
-if ($motorElegido) { Set-EnvValue "CAPTION_ENGINE" $Motor }
+if ($Motor) { Set-EnvValue "CAPTION_ENGINE" $motorActual }
 
 $composeArgs = @("compose", "-f", "docker-compose.yml")
 if ($ConOllama) {
-    if ($Motor -ne "local") { Write-Warning "Ollama solo se usa con el motor local (el actual es $Motor)." }
+    if ($motorActual -ne "local") { Write-Warning "Ollama solo se usa con el motor local (el actual es $motorActual)." }
     $composeArgs += @("-f", "docker-compose.ollama.yml")
 }
 
-Write-Host "Levantando OpenCaption Live (motor: $Motor)..."
+Write-Host "Levantando OpenCaption Live (motor: $motorActual)..."
 & docker @composeArgs up -d --build
 if ($LASTEXITCODE -ne 0) { Write-Error "docker compose falló." }
 
@@ -88,6 +92,6 @@ Write-Host "  Token de emision:    $(Get-EnvValue 'INGEST_TOKEN')"
 Write-Host ""
 Write-Host "  Logs:     $compose logs -f"
 Write-Host "  Detener:  $compose down"
-if ($Motor -eq "local") {
+if ($motorActual -eq "local") {
     Write-Host "  La primera vez el motor local descarga sus modelos (~550 MB): mira los logs."
 }
