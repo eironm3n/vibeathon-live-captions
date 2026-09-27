@@ -1,6 +1,8 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-websockets>=13
-pydantic>=2.7
-python-dotenv>=1.0
-google-genai>=1.0
+# Dependencias base (motores mock y la API). Versiones fijadas: actualizarlas
+# a propósito (Dependabot abre los PRs), no por accidente en cada build.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+websockets==16.1.1
+pydantic==2.13.5
+python-dotenv==1.2.3
+httpx==0.28.1

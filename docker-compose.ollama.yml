@@ -1,0 +1,42 @@
+# Override: traducción con un LLM local servido por Ollama (en vez de Argos).
+# Suele traducir mejor, a cambio de más RAM/disco (qwen2.5:7b ronda 4-5 GB).
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+#
+# Ollama no tiene autenticación: por eso NO se publica ningún puerto; solo
+# lo usa este stack por la red interna de Compose.
+
+services:
+  opencaption:
+    environment:
+      TRANSLATOR: ollama
+      OLLAMA_BASE_URL: http://ollama:11434
+    depends_on:
+      ollama-init:
+        condition: service_completed_successfully
+
+  ollama:
+    image: ollama/ollama:0.9.6
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  # Descarga el modelo la primera vez (las siguientes no hace nada).
+  ollama-init:
+    image: ollama/ollama:0.9.6
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${OLLAMA_MODEL:-qwen2.5:7b}"]
+    restart: "no"
+
+volumes:
+  ollama:

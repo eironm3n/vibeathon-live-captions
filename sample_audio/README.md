@@ -1,35 +1,27 @@
 # Audio/video de prueba
 
-Esta carpeta es donde poner los archivos usados para probar el pipeline con
+Carpeta para los archivos con los que probar el pipeline sin micrófono, ya
+sea desde el panel `/admin.html` (opción *Archivo*) o con
 [`tools/stream_audio_file.py`](../tools/stream_audio_file.py).
 
-La herramienta acepta **cualquier archivo de audio o video** que `ffmpeg`
-pueda leer (WAV, MP3, MP4, MKV, etc.) — no hace falta convertirlo a mano,
-la conversión a PCM16 16kHz mono se hace al vuelo. Necesitás tener
-`ffmpeg` instalado (`ffmpeg -version` para chequear):
+Se acepta **cualquier archivo de audio o video**. El panel web lo decodifica
+en el navegador; la herramienta de terminal usa `ffmpeg` para todo lo que no
+sea un WAV 16 kHz mono (`winget install Gyan.FFmpeg`, `brew install ffmpeg`
+o `apt install ffmpeg`).
 
-- Windows: `winget install Gyan.FFmpeg`
-- macOS: `brew install ffmpeg`
-- Linux: `apt install ffmpeg`
-
-No versionamos audio/video de charlas de terceros en este repo (derechos
-de autor) — por eso `*.mp4`, `*.wav`, etc. están en `.gitignore`.
+Los archivos de esta carpeta no se versionan (`*.wav`, `*.mp4`, etc. están
+en `.gitignore`): no subas grabaciones de charlas de terceros sin permiso.
 
 ## Conseguir un clip de prueba
 
-Con la grabación de una charla que ya tengas localmente, alcanza con:
+- **Grabate a vos mismo** unos minutos hablando del tema que quieras.
+- Usá audio de **dominio público**, por ejemplo audiolibros de
+  [LibriVox](https://librivox.org) (en varios idiomas).
+- Grabaciones de charlas **propias**, o de eventos que te hayan dado permiso.
 
 ```bash
-python tools/stream_audio_file.py sample_audio/mi_charla.mp4 --session-id escenario-1
+python tools/stream_audio_file.py sample_audio/mi_clip.mp3 --session-id prueba
 ```
 
-Si preferís bajar un fragmento de una charla de Nerdearla en YouTube:
-
-```bash
-pip install yt-dlp   # solo para esto, no es una dependencia del proyecto
-yt-dlp -o "sample_audio/charla1.mp4" <URL>
-python tools/stream_audio_file.py sample_audio/charla1.mp4 --session-id escenario-1
-```
-
-Para probar sesiones concurrentes (requisito N5), repetí con otro archivo
-y otro `--session-id` en una segunda terminal.
+Para probar sesiones simultáneas, corré otro archivo con otro `--session-id`
+en una segunda terminal.

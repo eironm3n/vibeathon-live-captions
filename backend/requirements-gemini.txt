@@ -1,0 +1,3 @@
+# Motor Gemini (CAPTION_ENGINE=gemini): requiere GEMINI_API_KEY.
+-r requirements.txt
+google-genai==2.25.0

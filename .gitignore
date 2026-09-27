@@ -14,3 +14,8 @@ venv/
 !sample_audio/README.md
 
 .DS_Store
+
+# Modelos descargados por el motor local (Whisper, Argos).
+models/
+
+.pytest_cache/
