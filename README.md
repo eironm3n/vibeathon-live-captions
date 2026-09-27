@@ -1,215 +1,250 @@
 # OpenCaption Live
 
-Transcripción y traducción simultánea en tiempo real para conferencias,
-pensada para reemplazar herramientas comerciales caras y operación manual
-por un pipeline automático, abierto y replicable por cualquier evento.
+Subtítulos y traducción simultánea en tiempo real para conferencias, abierto
+y replicable por cualquier evento. Transcribe lo que se dice en cada sala, lo
+traduce al idioma del público y lo muestra en una vista web o como overlay
+en OBS/vMix, con la transcripción completa exportable a SRT/VTT.
 
-Construido por [Aron Rojas](https://github.com/eironm3n) para la
-[Vibeathon de Nerdearla 2026](https://nerdear.la).
+Por defecto funciona **sin API keys, sin costo y sin que el audio salga de
+la máquina** (Whisper + traducción offline). Opcionalmente puede usar la
+Gemini Live API de Google.
+
+## Origen
+
+Este proyecto nació como una **propuesta para la Vibeathon de
+[Nerdearla](https://nerdear.la) 2026**, una hackatón de 24 horas. No llegó a
+entregarse a tiempo, así que se terminó y se publica como proyecto
+independiente de código abierto, manteniendo la idea original: que la
+accesibilidad de una conferencia no dependa de herramientas comerciales
+caras ni de gente operándolas a mano.
+
+No está afiliado ni avalado por Nerdearla. El nombre del evento aparece solo
+para contar de dónde salió la idea.
 
 ## El problema
 
-Nerdearla (y casi toda conferencia) resuelve hoy la accesibilidad de sus
-charlas con herramientas comerciales de transcripción/traducción y
-operación manual. Con 30+ sesiones en inglés en simultáneo, ese esquema no
-escala: es caro y depende de gente operándolo en vivo. El objetivo de este
-proyecto no es reemplazar intérpretes humanos en todo contexto, sino dar
-una alternativa abierta y barata para cuando esa opción no está disponible.
+Casi toda conferencia resuelve hoy la accesibilidad de sus charlas con
+herramientas comerciales de transcripción/traducción y operación manual. Con
+muchas sesiones en simultáneo, ese esquema no escala: es caro y depende de
+gente operándolo en vivo. El objetivo no es reemplazar a intérpretes humanos
+en todo contexto, sino dar una alternativa abierta y barata para cuando esa
+opción no está disponible.
 
-## Necesidades que cubre (alcance MVP)
+## Qué hace
 
-| # | Necesidad | Cómo se resuelve |
-|---|-----------|-------------------|
-| N1 | Ingesta de audio en vivo | WebSocket `/ws/ingest/{session_id}` acepta frames PCM16 16kHz mono desde cualquier fuente (mic, archivo, stream). Incluye [`tools/stream_audio_file.py`](tools/stream_audio_file.py) para simular una fuente en vivo desde un archivo. |
-| N2 | Transcripción en tiempo real (idioma original) | `input_audio_transcription` de la Gemini Live API, sobre el audio que llega a cada sesión. |
-| N3 | Traducción en tiempo real EN→ES (y cualquier idioma→destino) | La misma conexión Live API traduce el audio al idioma destino (`TARGET_LANGUAGE`, por defecto `es`) vía `system_instruction`. |
-| N4 | Visualización de subtítulos | Vista web de audiencia ([`frontend/`](frontend/)) que se conecta por WebSocket a `/ws/captions/{session_id}` y muestra el texto en vivo. |
-| N5 | Múltiples sesiones en simultáneo | Cada sesión (`session_id`) corre de forma independiente — su propia conexión Gemini Live y su propio canal de subtítulos. No hay límite artificial: correr 2, 5 o 10 sesiones es simplemente usar 2, 5 o 10 `session_id` distintos. Ver [Escalar a más sesiones](#escalar-a-más-sesiones). |
+| # | Necesidad (del desafío original) | Cómo se resuelve |
+|---|---|---|
+| N1 | Ingesta de audio en vivo | Micrófono desde el navegador ([`/admin.html`](frontend/admin.html)), un archivo de audio/video, o cualquier fuente que mande PCM16 16 kHz por WebSocket. |
+| N2 | Transcripción en tiempo real | Whisper local ([faster-whisper](https://github.com/SYSTRAN/faster-whisper)) o Gemini Live. |
+| N3 | Traducción en tiempo real | Argos Translate u Ollama (locales), o Gemini. Idiomas elegibles por sesión. |
+| N4 | Visualización de subtítulos | Vista de audiencia web con selector de sesión e idioma. |
+| N5 | Múltiples sesiones en simultáneo | Cada sala es una sesión independiente con su propio canal de subtítulos (hasta `MAX_SESSIONS`). |
+| + | Integración con OBS/vMix | [`/overlay.html`](frontend/overlay.html): fondo transparente, se reconecta sola entre charlas. |
+| + | Exportar la transcripción | SRT, VTT o texto, con tiempos relativos al audio, de sesiones activas o terminadas. |
+| + | Glosario técnico | [`glossary.txt`](glossary.txt): términos que no se traducen y correcciones de reconocimiento. |
 
-## Opcionales implementados
+## Motores
 
-| Opcional | Cómo se resuelve |
-|---|---|
-| Integración con OBS/vMix | [`/overlay.html`](frontend/overlay.html) — vista con fondo transparente y sin controles, pensada para usarse directo como *Browser Source*. `http://localhost:8000/overlay.html?session=escenario-1&lang=es` |
-| Exportar transcripción (SRT/VTT/texto) | `GET /api/sessions/{session_id}/export?lang=original\|es&fmt=srt\|vtt\|txt` — funciona con la sesión activa o ya terminada. Cada subtítulo final se guarda con su timestamp real (relativo al audio, no al momento en que Gemini respondió), así el archivo queda sincronizado. Desde el frontend, los links `.srt` / `.vtt` del header apuntan a la sesión y el idioma seleccionados. |
-| Glosario de términos técnicos / nombres propios | [`glossary.txt`](glossary.txt) en la raíz del repo: una entrada por línea, `término` (se mantiene tal cual) o `mal_reconocido => correcto` (corrige errores típicos de reconocimiento). Se inyecta en el `system_instruction` de la traducción. Se recarga solo al reiniciar el backend. |
+| Motor | Qué usa | Key | Costo | Privacidad | Cuándo conviene |
+|---|---|---|---|---|---|
+| `local` (por defecto) | Whisper + Argos Translate (u Ollama) | No | $0 | El audio no sale de la máquina | Casi siempre. |
+| `gemini` | Gemini Live API | Sí | Plan gratuito limitado, o pago | El audio va a Google (ver abajo) | Sin CPU/GPU disponible. |
+| `mock` | Frases simuladas | No | $0 | No procesa audio | Probar la interfaz, el overlay o los tests. |
 
-Quedan para una siguiente etapa (documentados pero no implementados): más
-idiomas de entrada/salida seleccionables por la audiencia (el backend ya
-soporta cualquier idioma vía `TARGET_LANGUAGE`, pero hoy es uno por
-despliegue, no por sesión) y un panel de monitoreo de producción.
+Para traducir, el motor local ofrece:
+
+- **`argos`** (por defecto): modelos offline de [Argos Translate](https://github.com/argosopentech/argos-translate)
+  (~90–300 MB por par de idiomas, se descargan la primera vez). Rápido y
+  liviano. Si no hay modelo directo entre dos idiomas, pasa por inglés.
+- **`ollama`**: un LLM local vía [Ollama](https://ollama.com) (por defecto
+  `qwen2.5:7b`, licencia Apache 2.0). Suele traducir mejor, a cambio de ~4–5 GB.
+- **`none`**: solo transcripción.
+
+## Arranque rápido
+
+Requisitos: [Docker](https://docs.docker.com/get-docker/) (Docker Desktop en
+Windows/macOS) corriendo. La primera vez el motor local descarga ~550 MB de
+modelos.
+
+**Windows (PowerShell):**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\iniciar.ps1
+```
+
+**Linux / macOS / Git Bash:**
+```bash
+bash iniciar.sh
+```
+
+El script crea `.env` (con un token aleatorio), levanta el contenedor y
+muestra las URLs y el token. Opciones:
+
+| Objetivo | Windows | Linux/macOS |
+|---|---|---|
+| Motor local (default) | `.\iniciar.ps1` | `bash iniciar.sh` |
+| Probar la interfaz sin procesar audio | `.\iniciar.ps1 -Motor mock` | `bash iniciar.sh --motor mock` |
+| Traducción con Ollama | `.\iniciar.ps1 -ConOllama` | `bash iniciar.sh --con-ollama` |
+| Gemini (poné `GEMINI_API_KEY` en `.env`) | `.\iniciar.ps1 -Motor gemini` | `bash iniciar.sh --motor gemini` |
+
+### Sin scripts
+
+```bash
+cp .env.example .env        # y completá INGEST_TOKEN
+docker compose up -d --build
+# con Ollama: docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+```
+
+### Sin Docker (Python 3.12)
+
+```bash
+cp .env.example .env
+cd backend
+pip install -r requirements-local.txt     # o requirements-gemini.txt / requirements.txt (mock)
+uvicorn app.main:app
+```
+
+## Uso
+
+1. **Emitir**: abrí `http://localhost:8000/admin.html`, pegá el token,
+   elegí un nombre de sesión (por ejemplo `sala-principal`), los idiomas y
+   la fuente (micrófono o archivo), y tocá *Iniciar transmisión*.
+   También se puede emitir un archivo desde la terminal:
+   ```bash
+   python tools/stream_audio_file.py mi_charla.mp4 --session-id sala-principal
+   ```
+   (toma el token de `.env`; para archivos que no sean WAV 16 kHz mono necesita `ffmpeg`).
+2. **Ver**: `http://localhost:8000`, elegí la sesión y el idioma.
+3. **OBS/vMix**: agregá una *Browser Source* con
+   `http://localhost:8000/overlay.html?session=sala-principal&lang=es`
+   (`lang=original` para el idioma hablado).
+4. **Exportar**: los links `.srt` / `.vtt` de la vista, o
+   `GET /api/sessions/{id}/export?lang=original|es&fmt=srt|vtt|txt`.
+   Se conservan las últimas `ARCHIVE_MAX_SESSIONS` sesiones terminadas, en
+   memoria: exportá al terminar cada charla si las querés guardar.
+
+**Glosario:** una entrada por línea en [`glossary.txt`](glossary.txt):
+`término` (se mantiene tal cual) o `mal_reconocido => correcto`. Se aplica
+al reiniciar el servidor.
 
 ## Arquitectura
 
 ```
-productor de audio          backend (FastAPI)                visor
-(mic / archivo / stream) ─▶ /ws/ingest/{id} ─▶ GeminiBridge ─▶ Gemini Live API
-                                   │                                │
-                                   │        transcripción(N2) + traducción(N3)
-                                   ▼                                │
-                              CaptionHub  ◀──────────────────────────
-                                   │
-                                   ▼
-                          /ws/captions/{id} ─▶ frontend (vista de audiencia)
+emisor (mic / archivo / stream)                                   visores
+        │ WS /ws/ingest/{id}  (token + PCM16 16 kHz)                  ▲
+        ▼                                                             │ WS /ws/captions/{id}
+  SegmentPipeline ──corta en pausas──▶ motor (local | gemini | mock)  │
+        │                              transcribe + traduce           │
+        └──────── publica en orden ──▶ CaptionHub ────────────────────┘
+                                           └──▶ historial ──▶ /export (SRT/VTT/txt)
 ```
 
-- `backend/app/gemini_bridge.py`: agrupa el audio de una sesión en
-  segmentos, abre una conexión Gemini Live por segmento y traduce las
-  respuestas del modelo en eventos de subtítulo (usa el glosario de
-  `glossary.py`).
-- `backend/app/session_manager.py`: registro de sesiones activas + archivo
-  de sesiones terminadas (para poder exportarlas después).
-- `backend/app/caption_hub.py`: pub/sub en memoria que reparte los
-  subtítulos de una sesión a todos sus visores conectados, y guarda el
-  historial de subtítulos finales para exportar.
-- `backend/app/export.py`: arma SRT/VTT/texto a partir de ese historial.
-- `backend/app/glossary.py`: carga `glossary.txt` (raíz del repo) para
-  mejorar la traducción de términos técnicos y nombres propios.
-- `frontend/`: página estática sin build step — selector de sesión +
-  toggle de idioma + panel de subtítulos + links de overlay/export.
-- `frontend/overlay.html` + `overlay.js`: vista minimal para usar como
-  Browser Source en OBS/vMix.
+- [`backend/app/pipeline.py`](backend/app/pipeline.py): junta el audio y lo
+  corta en la primera pausa después de `SEGMENT_MIN_SECONDS` (o al llegar a
+  `SEGMENT_MAX_SECONDS`), procesa segmentos en paralelo y publica en orden.
+  Si el motor no da abasto, descarta segmentos en vez de atrasarse sin límite.
+- [`backend/app/engines/`](backend/app/engines/): los motores intercambiables.
+- [`backend/app/session_manager.py`](backend/app/session_manager.py): sesiones
+  activas (un emisor por sesión) y archivo de sesiones terminadas.
+- [`backend/app/caption_hub.py`](backend/app/caption_hub.py): reparte los
+  subtítulos a los visores y avisa cuando la sesión termina.
+- [`frontend/`](frontend/): páginas estáticas sin build step.
 
-## Requisitos
+Para escalar más allá de una máquina: varias réplicas detrás de un
+balanceador con *sticky routing* por `session_id`, o mover el registro de
+sesiones a un almacén compartido (Redis).
 
-- Una API key de [Google AI Studio](https://aistudio.google.com/) con
-  acceso a la Gemini Live API (necesita un proyecto de Google Cloud
-  asociado a tu cuenta — si el desplegable de proyectos aparece vacío al
-  crear la key, creá uno primero en
-  [console.cloud.google.com/projectcreate](https://console.cloud.google.com/projectcreate),
-  no hace falta activar billing).
-- Docker + Docker Compose (recomendado), o Python 3.12+ para correrlo local.
-- `ffmpeg` instalado, si vas a probar con un archivo que no sea ya un WAV
-  16kHz mono PCM16 (por ejemplo, cualquier video). `winget install
-  Gyan.FFmpeg` (Windows) / `brew install ffmpeg` (macOS) / `apt install
-  ffmpeg` (Linux).
+## Seguridad y privacidad
 
-## Cómo levantarlo
+- **Emitir requiere token** (`INGEST_TOKEN`). Viaja en el primer mensaje del
+  WebSocket, nunca en la URL, para que no quede en logs. Si no lo definís,
+  se genera uno por arranque y se muestra en el log.
+- **Un emisor por sesión**: nadie puede meter audio en una sesión ajena.
+- **Límites**: sesiones simultáneas, tamaño de cada frame de audio, cola de
+  segmentos, historial y sesiones archivadas.
+- **Ver y exportar es público**, porque es su propósito. Si una charla es
+  privada, no expongas el servidor o ponelo detrás de un proxy con login.
+- **Headers de seguridad** (CSP, `nosniff`, sin referrer) en todas las páginas.
+- **Por defecto solo escucha en `127.0.0.1`.** Ver [Publicarlo](#publicarlo).
+- **Privacidad según el motor**: con `local`, el audio no sale de la
+  máquina. Con `gemini`, el audio se envía a Google; según los términos de
+  la Gemini API, lo enviado con el plan gratuito puede usarse para mejorar
+  sus productos. Avisá a los oradores si usás este motor.
 
-### Con Docker (recomendado)
+Para reportar una vulnerabilidad, ver [SECURITY.md](SECURITY.md).
+
+### Publicarlo
+
+Para usarlo desde otras máquinas (proyector, OBS en otra PC, el público):
+
+1. Ponelo detrás de un proxy con HTTPS. El micrófono del navegador solo
+   funciona en `https://` o en `localhost`. Ejemplo con [Caddy](https://caddyserver.com),
+   que maneja certificados y WebSockets solo:
+   ```
+   subtitulos.tu-dominio.com {
+       reverse_proxy 127.0.0.1:8000
+   }
+   ```
+2. Usá un `INGEST_TOKEN` largo y fijo en `.env`, y compartilo solo con
+   quien opera el audio.
+3. Si necesitás exponerlo en la red local sin proxy, cambiá el puerto en
+   `docker-compose.yml` a `"8000:8000"`, sabiendo que queda sin HTTPS.
+
+## Rendimiento y limitaciones
+
+- **Motor local**: con `WHISPER_MODEL=small` en un CPU de escritorio de 12
+  hilos, 8 s de audio se transcriben en ~3 s y la traducción de Argos tarda
+  milisegundos. Los subtítulos llegan ~4–5 s después de cada frase. Para
+  varias salas a la vez conviene `base`, GPU (`WHISPER_DEVICE=cuda`, fuera
+  de Docker) o más réplicas.
+- **Fijá el idioma hablado** (`SOURCE_LANGUAGE`): la detección automática
+  se confunde con acentos fuertes en fragmentos cortos.
+- **Calidad**: Whisper `small` comete errores con acentos marcados o audio
+  ruidoso; `medium` mejora a costa de velocidad. Argos traduce bien frases
+  simples y peor las largas o técnicas; Ollama suele ser mejor. El glosario
+  ayuda con nombres propios.
+- **Gemini**: cada segmento abre su propia conexión (con
+  `gemini-3.1-flash-live-preview` una conexión solo respondía un turno) y el
+  modelo genera audio antes de devolver texto, lo que agrega latencia; por
+  eso se procesan varios segmentos en paralelo (`GEMINI_MAX_PARALLEL`). Los
+  modelos *preview* pueden cambiar o desaparecer.
+- Los subtítulos llegan por frase, no palabra por palabra.
+
+## Desarrollo
 
 ```bash
-cp .env.example .env
-# editá .env y poné tu GEMINI_API_KEY
-
-docker compose up --build
-```
-
-La vista de audiencia queda en `http://localhost:8000`.
-
-### Local, sin Docker
-
-```bash
-cp .env.example .env
-# editá .env y poné tu GEMINI_API_KEY
-
 cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+pip install -r requirements-dev.txt
+pytest
 ```
 
-## Cómo probarlo
+Los tests usan el motor `mock`: no necesitan key, modelos ni red. CI corre
+los tests y construye la imagen Docker en cada PR; Dependabot propone las
+actualizaciones de dependencias (todas con versión fijada).
 
-El backend no genera audio por sí solo: necesita que algo le mande frames
-de audio a `/ws/ingest/{session_id}`. Para probarlo sin depender de un
-micrófono, usamos un archivo de prueba — puede ser video o audio, en
-cualquier formato que `ffmpeg` sepa leer (ver
-[`sample_audio/README.md`](sample_audio/README.md) para conseguir uno, por
-ejemplo la grabación de una charla):
+## Problemas comunes
 
-```bash
-python tools/stream_audio_file.py sample_audio/mi_charla.mp4 --session-id escenario-1
-```
+| Síntoma | Solución |
+|---|---|
+| El panel dice "Token inválido" | Usá el `INGEST_TOKEN` de `.env` (o el del log, si no definiste uno). |
+| "Ya hay otro emisor conectado a esa sesión" | Cada sesión admite un emisor: cerrá el otro o usá otro nombre. |
+| El micrófono no arranca | Tiene que ser `https://` o `localhost`, y el navegador tiene que tener permiso. |
+| Los primeros subtítulos tardan mucho | La primera vez se descargan los modelos: mirá `docker compose logs -f`. |
+| Subtítulos atrasados o "motor saturado" en el log | El motor no da abasto: probá `WHISPER_MODEL=base`, menos salas o GPU. |
+| Gemini: `models/... is not found` | Tu cuenta no tiene ese modelo: cambiá `GEMINI_MODEL`. |
 
-Abrí `http://localhost:8000`, elegí `escenario-1` en el selector y mirá los
-subtítulos en vivo.
+## Licencias de terceros
 
-Para demostrar el requisito N5 (sesiones concurrentes), abrí otra terminal
-y corré un segundo archivo con otro `session_id`:
-
-```bash
-python tools/stream_audio_file.py sample_audio/otra_charla.mp4 --session-id escenario-2
-```
-
-Las dos sesiones corren en paralelo y son seleccionables por separado en
-el frontend.
-
-## Escalar a más sesiones
-
-El diseño actual soporta N sesiones concurrentes dentro de un mismo
-proceso (cada una es una tarea `asyncio` independiente). Para escalar más
-allá de la capacidad de una sola instancia:
-
-- Correr varias réplicas de este mismo contenedor detrás de un balanceador
-  con *sticky routing* por `session_id` (el productor y los visores de una
-  sesión deben llegar siempre a la misma réplica).
-- Si se necesita descubrir en qué réplica vive cada sesión, mover el
-  registro de `session_manager.py` a un almacén compartido (por ejemplo
-  Redis) en vez de un dict en memoria.
-
-## Estado / limitaciones conocidas
-
-Probado de punta a punta contra la Gemini Live API real (`gemini-3.1-flash-live-preview`,
-el único modelo "Live" disponible en la cuenta usada para probar — si tu
-cuenta tiene otro, cambiá `GEMINI_MODEL`), incluyendo dos sesiones
-concurrentes reales. En el camino aparecieron un par de límites del modelo
-que moldearon el diseño de `gemini_bridge.py`:
-
-- **Una conexión Live solo responde a un turno.** Se probó mantener una
-  única conexión abierta durante toda la sesión (como sería lo más
-  natural), pero ni la detección automática de silencio ni
-  `activity_start`/`activity_end` manuales dispararon una segunda
-  respuesta en la misma conexión — hacía falta abrir una conexión nueva
-  por turno. Por eso el audio se junta en segmentos de `SEGMENT_SECONDS`
-  (8s por defecto) y cada segmento abre su propia conexión corta. Esto
-  agrupa los subtítulos en bloques de unos segundos en vez de palabra por
-  palabra — es la principal oportunidad de mejora si aparece un modelo/API
-  que soporte múltiples turnos por conexión.
-- **El modelo no soporta salida solo-texto** (`response_modalities=["TEXT"]`
-  falla). Hay que pedir audio (`["AUDIO"]`) y leer la transcripción de esa
-  salida (`output_audio_transcription`), descartando el audio en sí. Esto
-  agrega latencia: el modelo genera el audio completo de la traducción
-  antes de poder devolver su transcripción (en las pruebas, un segmento de
-  ~8s tardó bastante más que 8s en resolverse).
-- El WebSocket de subtítulos rechaza la conexión si la sesión todavía no
-  existe (el productor de audio debe conectarse antes que el visor).
-
-### Oportunidad de mejora: latencia
-
-`gemini-3.5-transcribe-live` y `gemini-3.5-live-translate-preview` son
-modelos especializados que sí aceptan `response_modalities=["TEXT"]`, y
-este último tiene un `translation_config.target_language_code` hecho a
-medida para traducir sin tener que instruir al modelo por prompt — en
-teoría evitarían por completo la generación de audio innecesaria y
-bajarían mucho la latencia. Al probarlos con audio real fallaron con
-`1008 policy violation: operation was aborted` (probablemente límites de
-uso más estrictos por ser preview, agravado por la cantidad de pruebas ya
-hechas contra la cuenta). Vale la pena reintentarlos con más margen antes
-de la entrega final.
-
-## Troubleshooting
-
-- **`models/... is not found ... bidiGenerateContent`** al arrancar una
-  sesión: tu cuenta no tiene el modelo de `GEMINI_MODEL` (varía por cuenta
-  / región). Listá los modelos Live disponibles para tu key y elegí uno:
-  ```bash
-  python -c "
-  from google import genai
-  import os
-  client = genai.Client(api_key=os.environ['GEMINI_API_KEY'])
-  for m in client.models.list():
-      if 'bidiGenerateContent' in (m.supported_actions or []):
-          print(m.name)
-  "
-  ```
-  y poné el que elijas en `GEMINI_MODEL` (en `.env`).
-- **`No API key was provided`** o el WebSocket de ingesta se cierra con
-  código 1011 apenas conecta: falta `GEMINI_API_KEY` en `.env`, o está mal
-  copiada.
+El código es MIT. Los modelos se descargan aparte y tienen sus propias
+licencias: Whisper (MIT, OpenAI; conversión de SYSTRAN), los paquetes de
+Argos Translate (ver la licencia de cada paquete) y el modelo de Ollama que
+elijas (por defecto Qwen2.5 7B, Apache 2.0). Si usás Gemini, aplican los
+términos de Google.
 
 ## Autor
 
 **Aron Rojas** — [github.com/eironm3n](https://github.com/eironm3n)
+
+<sub>Herramienta planificada y desarrollada en conjunto con Claude (Anthropic): Claude Sonnet 5 en la versión original para la Vibeathon y Claude Opus 5.5 en esta revisión.</sub>
 
 ## Licencia
 
