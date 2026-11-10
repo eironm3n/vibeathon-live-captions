@@ -242,7 +242,7 @@ términos de Google.
 
 ## Autor
 
-**Aron Rojas** — [github.com/eironm3n](https://github.com/eironm3n)
+**Arón Rojas** — [github.com/eironm3n](https://github.com/eironm3n)
 
 <sub>Herramienta planificada y desarrollada en conjunto con Claude (Anthropic): Claude Sonnet 5 en la versión original para la Vibeathon y Claude Opus 5.5 en esta revisión.</sub>
 
