@@ -2,7 +2,7 @@
 # Todas con licencias MIT/Apache; ninguna trae PyTorch.
 -r requirements.txt
 faster-whisper==1.2.1
-ctranslate2==4.8.5
+ctranslate2==4.9.0
 numpy==2.5.4
 sentencepiece==0.2.3
 subword-nmt==0.3.8
