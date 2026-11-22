@@ -1,6 +1,6 @@
 # Dependencias base (motores mock y la API). Versiones fijadas: actualizarlas
 # a propósito (Dependabot abre los PRs), no por accidente en cada build.
-fastapi==0.162.3
+fastapi==0.165.0
 uvicorn[standard]==0.54.0
 websockets==16.1.1
 pydantic==2.14.3
